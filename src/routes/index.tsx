@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { submitInitiative } from "@/lib/sheets.functions";
+import { uploadSubmissionFiles } from "@/lib/drive.functions";
 import Chart from "chart.js/auto";
 
 export const Route = createFileRoute("/")({
@@ -56,6 +57,7 @@ function Index() {
   const chartInstanceRef = useRef<Chart | null>(null);
 
   const submitFn = useServerFn(submitInitiative);
+  const uploadFn = useServerFn(uploadSubmissionFiles);
 
   // Form fields
   const [name, setName] = useState("");
@@ -65,7 +67,38 @@ function Index() {
   const [type, setType] = useState<ActionType>("Declaration");
   const [desc, setDesc] = useState("");
   const [link, setLink] = useState("");
-  const [files, setFiles] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploadStatus, setUploadStatus] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const MAX_FILES = 10;
+  const MAX_BYTES = 25 * 1024 * 1024;
+
+  const addFiles = useCallback((picked: FileList | File[]) => {
+    const incoming = Array.from(picked);
+    const tooBig = incoming.find((f) => f.size > MAX_BYTES);
+    if (tooBig) {
+      setAlertMessage(`"${tooBig.name}" exceeds the 25 MB limit.`);
+      setAlertOpen(true);
+      return;
+    }
+    setFiles((prev) => {
+      const merged = [...prev];
+      for (const f of incoming) {
+        if (merged.length >= MAX_FILES) break;
+        if (!merged.some((m) => m.name === f.name && m.size === f.size)) merged.push(f);
+      }
+      if (prev.length + incoming.length > MAX_FILES) {
+        setAlertMessage(`You can attach up to ${MAX_FILES} files. Extras were ignored.`);
+        setAlertOpen(true);
+      }
+      return merged;
+    });
+  }, []);
+
+  const removeFile = (idx: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   const scrollToSection = useCallback((id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
@@ -177,7 +210,20 @@ function Index() {
     }
 
     setSubmitting(true);
+    setUploadStatus("");
     try {
+      let folderLink = "";
+      if (files.length > 0) {
+        setUploadStatus(`Uploading ${files.length} file${files.length === 1 ? "" : "s"} to Drive...`);
+        const fd = new FormData();
+        fd.append("submitter", name.trim());
+        fd.append("title", title.trim());
+        for (const f of files) fd.append("files", f, f.name);
+        const result = await uploadFn({ data: fd });
+        folderLink = result.folderLink;
+      }
+
+      setUploadStatus("Recording submission...");
       await submitFn({
         data: {
           name: name.trim(),
@@ -187,7 +233,7 @@ function Index() {
           type,
           desc: desc.trim(),
           link: link.trim(),
-          files: files.trim(),
+          files: folderLink,
         },
       });
 
@@ -199,6 +245,7 @@ function Index() {
       showAlert("Something went wrong submitting your initiative. Please try again.");
     } finally {
       setSubmitting(false);
+      setUploadStatus("");
     }
   };
 
@@ -532,15 +579,56 @@ function Index() {
                   </div>
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-widest mb-2 text-[#f2d08a]">
-                      Materials &amp; Upload Description
+                      Supporting Materials (Optional)
                     </label>
-                    <textarea
-                      rows={3}
-                      className="form-input resize-none"
-                      placeholder="Describe any brochures, letter templates, or resource guide PDFs you will be sending via email for inclusion..."
-                      value={files}
-                      onChange={(e) => setFiles(e.target.value)}
-                    />
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => { e.preventDefault(); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
+                      }}
+                      className="cursor-pointer p-6 bg-[#051321]/60 rounded-lg border-2 border-dashed border-[#dfb560]/40 hover:border-[#dfb560]/70 transition-colors text-center"
+                    >
+                      <div className="text-[#dfb560] text-2xl mb-1">⬆</div>
+                      <div className="text-sm text-slate-300">
+                        <span className="font-bold text-[#f2d08a]">Click to upload</span> or drag &amp; drop
+                      </div>
+                      <div className="text-[11px] text-slate-500 mt-1 uppercase tracking-wider">
+                        Up to 10 files &middot; 25 MB each &middot; any type
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files) addFiles(e.target.files);
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+                    {files.length > 0 && (
+                      <ul className="mt-3 space-y-2">
+                        {files.map((f, i) => (
+                          <li
+                            key={`${f.name}-${i}`}
+                            className="flex items-center justify-between gap-3 bg-slate-950/60 border border-white/10 rounded-md px-3 py-2 text-xs"
+                          >
+                            <span className="truncate text-slate-200">{f.name}</span>
+                            <span className="text-slate-500 shrink-0">{(f.size / 1024 / 1024).toFixed(2)} MB</span>
+                            <button
+                              type="button"
+                              onClick={() => removeFile(i)}
+                              className="text-[#dfb560] hover:text-white shrink-0"
+                              aria-label="Remove file"
+                            >
+                              ✕
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                   <div className="p-6 bg-[#051321]/80 rounded-xl border border-dashed border-[#dfb560]/40">
                     <h4 className="text-xs font-bold text-[#dfb560] uppercase tracking-widest mb-3">
@@ -574,7 +662,7 @@ function Index() {
                       disabled={submitting}
                       className="w-2/3 bg-white text-slate-950 py-4 rounded-lg font-black hover:bg-slate-100 transition-all uppercase tracking-widest text-xs shadow-xl disabled:opacity-60"
                     >
-                      {submitting ? "Submitting..." : "Submit Initiative"}
+                      {submitting ? (uploadStatus || "Submitting...") : "Submit Initiative"}
                     </button>
                   </div>
                 </div>

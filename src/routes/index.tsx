@@ -210,7 +210,20 @@ function Index() {
     }
 
     setSubmitting(true);
+    setUploadStatus("");
     try {
+      let folderLink = "";
+      if (files.length > 0) {
+        setUploadStatus(`Uploading ${files.length} file${files.length === 1 ? "" : "s"} to Drive...`);
+        const fd = new FormData();
+        fd.append("submitter", name.trim());
+        fd.append("title", title.trim());
+        for (const f of files) fd.append("files", f, f.name);
+        const result = await uploadFn({ data: fd });
+        folderLink = result.folderLink;
+      }
+
+      setUploadStatus("Recording submission...");
       await submitFn({
         data: {
           name: name.trim(),
@@ -220,7 +233,7 @@ function Index() {
           type,
           desc: desc.trim(),
           link: link.trim(),
-          files: files.trim(),
+          files: folderLink,
         },
       });
 
@@ -232,6 +245,7 @@ function Index() {
       showAlert("Something went wrong submitting your initiative. Please try again.");
     } finally {
       setSubmitting(false);
+      setUploadStatus("");
     }
   };
 

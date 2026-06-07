@@ -252,7 +252,6 @@ function Index() {
   const finalCount = submissions.length + 9;
   const percentage = Math.min((finalCount / 20) * 100, 100);
 
-  const latest = submissions[submissions.length - 1];
 
   return (
     <div

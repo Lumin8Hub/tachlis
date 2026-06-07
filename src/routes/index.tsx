@@ -579,15 +579,56 @@ function Index() {
                   </div>
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-widest mb-2 text-[#f2d08a]">
-                      Materials &amp; Upload Description
+                      Supporting Materials (Optional)
                     </label>
-                    <textarea
-                      rows={3}
-                      className="form-input resize-none"
-                      placeholder="Describe any brochures, letter templates, or resource guide PDFs you will be sending via email for inclusion..."
-                      value={files}
-                      onChange={(e) => setFiles(e.target.value)}
-                    />
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => { e.preventDefault(); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
+                      }}
+                      className="cursor-pointer p-6 bg-[#051321]/60 rounded-lg border-2 border-dashed border-[#dfb560]/40 hover:border-[#dfb560]/70 transition-colors text-center"
+                    >
+                      <div className="text-[#dfb560] text-2xl mb-1">⬆</div>
+                      <div className="text-sm text-slate-300">
+                        <span className="font-bold text-[#f2d08a]">Click to upload</span> or drag &amp; drop
+                      </div>
+                      <div className="text-[11px] text-slate-500 mt-1 uppercase tracking-wider">
+                        Up to 10 files &middot; 25 MB each &middot; any type
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files) addFiles(e.target.files);
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+                    {files.length > 0 && (
+                      <ul className="mt-3 space-y-2">
+                        {files.map((f, i) => (
+                          <li
+                            key={`${f.name}-${i}`}
+                            className="flex items-center justify-between gap-3 bg-slate-950/60 border border-white/10 rounded-md px-3 py-2 text-xs"
+                          >
+                            <span className="truncate text-slate-200">{f.name}</span>
+                            <span className="text-slate-500 shrink-0">{(f.size / 1024 / 1024).toFixed(2)} MB</span>
+                            <button
+                              type="button"
+                              onClick={() => removeFile(i)}
+                              className="text-[#dfb560] hover:text-white shrink-0"
+                              aria-label="Remove file"
+                            >
+                              ✕
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                   <div className="p-6 bg-[#051321]/80 rounded-xl border border-dashed border-[#dfb560]/40">
                     <h4 className="text-xs font-bold text-[#dfb560] uppercase tracking-widest mb-3">
@@ -621,7 +662,7 @@ function Index() {
                       disabled={submitting}
                       className="w-2/3 bg-white text-slate-950 py-4 rounded-lg font-black hover:bg-slate-100 transition-all uppercase tracking-widest text-xs shadow-xl disabled:opacity-60"
                     >
-                      {submitting ? "Submitting..." : "Submit Initiative"}
+                      {submitting ? (uploadStatus || "Submitting...") : "Submit Initiative"}
                     </button>
                   </div>
                 </div>

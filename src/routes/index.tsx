@@ -252,7 +252,6 @@ function Index() {
   const finalCount = submissions.length + 9;
   const percentage = Math.min((finalCount / 20) * 100, 100);
 
-  const latest = submissions[submissions.length - 1];
 
   return (
     <div
@@ -753,21 +752,18 @@ function Index() {
                   <div className="flex items-center space-x-3">
                     <span className="w-2 h-2 bg-[#dfb560] rounded-full animate-pulse" />
                     <span className="font-bold text-xs uppercase tracking-wider text-slate-300">
-                      {latest.name}
+                      Coming Soon
                     </span>
                   </div>
                   <h5
                     className="text-lg font-bold text-white"
                     style={{ fontFamily: "'Montserrat', sans-serif" }}
                   >
-                    {latest.title}
+                    Stay tuned
                   </h5>
                   <p className="text-sm text-slate-300 leading-relaxed">
-                    {latest.desc.length > 120 ? latest.desc.substring(0, 120) + "..." : latest.desc}
+                    Our next featured initiative will be announced here shortly.
                   </p>
-                  <span className="inline-block px-3 py-1 bg-slate-950 text-[10px] font-black uppercase tracking-[0.15em] rounded border border-[#dfb560]/30 text-[#f2d08a]">
-                    {latest.type}
-                  </span>
                 </div>
               </div>
             </div>

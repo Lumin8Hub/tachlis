@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { submitInitiative } from "@/lib/sheets.functions";
+import { uploadSubmissionFiles } from "@/lib/drive.functions";
 import Chart from "chart.js/auto";
 
 export const Route = createFileRoute("/")({
@@ -56,6 +57,7 @@ function Index() {
   const chartInstanceRef = useRef<Chart | null>(null);
 
   const submitFn = useServerFn(submitInitiative);
+  const uploadFn = useServerFn(uploadSubmissionFiles);
 
   // Form fields
   const [name, setName] = useState("");
@@ -65,7 +67,38 @@ function Index() {
   const [type, setType] = useState<ActionType>("Declaration");
   const [desc, setDesc] = useState("");
   const [link, setLink] = useState("");
-  const [files, setFiles] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploadStatus, setUploadStatus] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const MAX_FILES = 10;
+  const MAX_BYTES = 25 * 1024 * 1024;
+
+  const addFiles = useCallback((picked: FileList | File[]) => {
+    const incoming = Array.from(picked);
+    const tooBig = incoming.find((f) => f.size > MAX_BYTES);
+    if (tooBig) {
+      setAlertMessage(`"${tooBig.name}" exceeds the 25 MB limit.`);
+      setAlertOpen(true);
+      return;
+    }
+    setFiles((prev) => {
+      const merged = [...prev];
+      for (const f of incoming) {
+        if (merged.length >= MAX_FILES) break;
+        if (!merged.some((m) => m.name === f.name && m.size === f.size)) merged.push(f);
+      }
+      if (prev.length + incoming.length > MAX_FILES) {
+        setAlertMessage(`You can attach up to ${MAX_FILES} files. Extras were ignored.`);
+        setAlertOpen(true);
+      }
+      return merged;
+    });
+  }, []);
+
+  const removeFile = (idx: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   const scrollToSection = useCallback((id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
